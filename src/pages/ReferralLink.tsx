@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { Copy, Check, QrCode, Link2, Info } from 'lucide-react';
+import { Copy, Check, QrCode, Link2, Info, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useReferralInfo } from '@/hooks/use-api';
 
 const ReferralLink: React.FC = () => {
-  const { user } = useAuth();
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const { data: referralInfo, isLoading, error } = useReferralInfo();
 
-  const referralCode = user?.referralCode || 'PARTNER2024';
-  const referralLink = `https://karirnusantara.id/register?ref=${referralCode}`;
+  const referralCode = referralInfo?.referral_code || 'PARTNER2024';
+  const referralLink = referralInfo?.referral_link || `https://karirnusantara.id/register?ref=${referralCode}`;
 
   const copyToClipboard = async (text: string, type: 'link' | 'code') => {
     try {
@@ -30,6 +30,23 @@ const ReferralLink: React.FC = () => {
 
   // Generate QR code URL using a free API
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(referralLink)}`;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-muted-foreground">
+        <AlertCircle className="h-12 w-12" />
+        <p>Failed to load referral information</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

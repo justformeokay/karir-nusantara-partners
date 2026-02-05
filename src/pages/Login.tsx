@@ -24,12 +24,12 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
+      const result = await login(email, password);
+      if (result.success) {
         toast.success('Welcome back!');
         navigate('/dashboard');
       } else {
-        toast.error('Invalid credentials');
+        toast.error(result.error || 'Invalid credentials');
       }
     } catch {
       toast.error('Login failed. Please try again.');

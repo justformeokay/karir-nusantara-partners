@@ -5,15 +5,44 @@ import {
   TrendingUp,
   Wallet,
   BadgeCheck,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { CommissionChart } from '@/components/dashboard/CommissionChart';
 import { CompaniesChart } from '@/components/dashboard/CompaniesChart';
-import { mockStats, mockMonthlyData, formatCurrency } from '@/lib/mock-data';
+import { formatCurrency } from '@/lib/mock-data';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDashboardStats, useMonthlyData } from '@/hooks/use-api';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats();
+  const { data: monthlyData, isLoading: monthlyLoading } = useMonthlyData();
+
+  // Transform monthly data for charts
+  const chartData = monthlyData?.map((item) => ({
+    month: item.month,
+    commission: item.commission,
+    companies: item.companies,
+  })) || [];
+
+  if (statsLoading || monthlyLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-muted-foreground">
+        <AlertCircle className="h-12 w-12" />
+        <p>Failed to load dashboard data</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -31,34 +60,34 @@ const Dashboard: React.FC = () => {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           title="Companies Referred"
-          value={mockStats.totalCompanies.toString()}
+          value={stats?.total_companies?.toString() || '0'}
           icon={Building2}
           variant="primary"
           trend={{ value: 12, isPositive: true }}
         />
         <StatCard
           title="Total Transactions"
-          value={mockStats.totalTransactions.toString()}
+          value={stats?.total_transactions?.toString() || '0'}
           icon={Receipt}
           variant="default"
         />
         <StatCard
           title="Total Commission"
-          value={formatCurrency(mockStats.totalCommission)}
-          subtitle="40% of revenue"
+          value={formatCurrency(stats?.total_commission || 0)}
+          subtitle={`${stats?.commission_rate || 40}% of revenue`}
           icon={TrendingUp}
           variant="primary"
         />
         <StatCard
           title="Available Balance"
-          value={formatCurrency(mockStats.availableBalance)}
+          value={formatCurrency(stats?.available_balance || 0)}
           subtitle="Ready for payout"
           icon={Wallet}
           variant="accent"
         />
         <StatCard
           title="Paid Commission"
-          value={formatCurrency(mockStats.paidCommission)}
+          value={formatCurrency(stats?.paid_commission || 0)}
           subtitle="Lifetime earnings"
           icon={BadgeCheck}
           variant="default"
@@ -67,8 +96,8 @@ const Dashboard: React.FC = () => {
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <CommissionChart data={mockMonthlyData} />
-        <CompaniesChart data={mockMonthlyData} />
+        <CommissionChart data={chartData} />
+        <CompaniesChart data={chartData} />
       </div>
 
       {/* Quick Actions */}

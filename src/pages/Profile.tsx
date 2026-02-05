@@ -16,10 +16,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDate } from '@/lib/mock-data';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [displayName, setDisplayName] = useState(user?.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -30,10 +31,19 @@ const Profile: React.FC = () => {
 
   const handleSaveName = async () => {
     setIsSavingName(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    toast.success('Display name updated successfully!');
-    setIsSavingName(false);
+    try {
+      const response = await api.updateProfile({ name: displayName });
+      if (response.success) {
+        toast.success('Display name updated successfully!');
+        refreshProfile();
+      } else {
+        toast.error(response.error?.message || 'Failed to update name');
+      }
+    } catch {
+      toast.error('Failed to update name');
+    } finally {
+      setIsSavingName(false);
+    }
   };
 
   const handleSavePassword = async () => {
@@ -47,13 +57,21 @@ const Profile: React.FC = () => {
     }
 
     setIsSavingPassword(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    toast.success('Password updated successfully!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setIsSavingPassword(false);
+    try {
+      const response = await api.changePassword(currentPassword, newPassword);
+      if (response.success) {
+        toast.success('Password updated successfully!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        toast.error(response.error?.message || 'Failed to update password');
+      }
+    } catch {
+      toast.error('Failed to update password');
+    } finally {
+      setIsSavingPassword(false);
+    }
   };
 
   return (

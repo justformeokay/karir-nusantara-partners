@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Receipt, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Receipt, ChevronLeft, ChevronRight, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,41 +18,57 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockTransactions, formatCurrency, formatDate } from '@/lib/mock-data';
-
-const ITEMS_PER_PAGE = 15;
+import { formatCurrency, formatDate } from '@/lib/mock-data';
+import { useTransactions } from '@/hooks/use-api';
 
 const Transactions: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  const { 
+    transactions, 
+    pagination, 
+    totals, 
+    isLoading, 
+    error, 
+    setPage, 
+    setStatus 
+  } = useTransactions();
 
-  const filteredTransactions = useMemo(() => {
-    return mockTransactions.filter((transaction) => {
-      const matchesSearch = transaction.companyName
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === 'all' || transaction.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [searchQuery, statusFilter]);
-
-  const totalPages = Math.ceil(filteredTransactions.length / ITEMS_PER_PAGE);
-  const paginatedTransactions = filteredTransactions.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+  // Client-side search filter
+  const filteredTransactions = transactions.filter((tx) =>
+    tx.company_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totals = useMemo(() => {
-    const pending = filteredTransactions
-      .filter((t) => t.status === 'pending')
-      .reduce((sum, t) => sum + t.commission, 0);
-    const paid = filteredTransactions
-      .filter((t) => t.status === 'paid')
-      .reduce((sum, t) => sum + t.commission, 0);
-    return { pending, paid, total: pending + paid };
-  }, [filteredTransactions]);
+  if (isLoading && transactions.length === 0) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-muted-foreground">
+        <AlertCircle className="h-12 w-12" />
+        <p>Failed to load transactions data</p>
+      </div>
+    );
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return <Badge variant="success">Paid</Badge>;
+      case 'approved':
+        return <Badge variant="active">Approved</Badge>;
+      case 'pending':
+        return <Badge variant="warning">Pending</Badge>;
+      case 'rejected':
+        return <Badge variant="inactive">Rejected</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -87,21 +103,15 @@ const Transactions: React.FC = () => {
           <Input
             placeholder="Search by company..."
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
         </div>
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select
-            value={statusFilter}
-            onValueChange={(value) => {
-              setStatusFilter(value);
-              setCurrentPage(1);
-            }}
+            defaultValue="all"
+            onValueChange={(value) => setStatus(value)}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Status" />
@@ -109,6 +119,7 @@ const Transactions: React.FC = () => {
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
             </SelectContent>
           </Select>
@@ -122,14 +133,14 @@ const Transactions: React.FC = () => {
             <TableRow className="hover:bg-transparent">
               <TableHead>Date</TableHead>
               <TableHead>Company</TableHead>
-              <TableHead className="text-right">Job Quota</TableHead>
+              <TableHead>Description</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right">Commission (40%)</TableHead>
+              <TableHead className="text-right">Commission</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedTransactions.length === 0 ? (
+            {filteredTransactions.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -139,25 +150,21 @@ const Transactions: React.FC = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedTransactions.map((transaction) => (
+              filteredTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell className="text-muted-foreground">
                     {formatDate(transaction.date)}
                   </TableCell>
-                  <TableCell className="font-medium">{transaction.companyName}</TableCell>
-                  <TableCell className="text-right">{transaction.jobQuota}</TableCell>
+                  <TableCell className="font-medium">{transaction.company_name}</TableCell>
+                  <TableCell className="text-muted-foreground">{transaction.description}</TableCell>
                   <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(transaction.amount)}
+                    {formatCurrency(transaction.transaction_amount)}
                   </TableCell>
                   <TableCell className="text-right font-medium text-primary">
-                    {formatCurrency(transaction.commission)}
+                    {formatCurrency(transaction.commission_amount)}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={transaction.status === 'paid' ? 'success' : 'warning'}
-                    >
-                      {transaction.status === 'paid' ? 'Paid' : 'Pending'}
-                    </Badge>
+                    {getStatusBadge(transaction.status)}
                   </TableCell>
                 </TableRow>
               ))
@@ -166,30 +173,28 @@ const Transactions: React.FC = () => {
         </Table>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {pagination.totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
             <p className="text-sm text-muted-foreground">
-              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
-              {Math.min(currentPage * ITEMS_PER_PAGE, filteredTransactions.length)} of{' '}
-              {filteredTransactions.length} transactions
+              Showing page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalItems} transactions)
             </p>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                onClick={() => setPage(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="text-sm font-medium">
-                {currentPage} / {totalPages}
+                {pagination.currentPage} / {pagination.totalPages}
               </span>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => setPage(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>

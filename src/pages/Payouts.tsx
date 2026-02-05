@@ -7,16 +7,38 @@ import {
   Download,
   Bell,
   Info,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockPayoutInfo, mockUser, formatCurrency, formatDate } from '@/lib/mock-data';
+import { formatCurrency, formatDate } from '@/lib/mock-data';
 import { toast } from 'sonner';
+import { usePayoutInfo } from '@/hooks/use-api';
 
 const Payouts: React.FC = () => {
+  const { data: payoutInfo, isLoading, error } = usePayoutInfo();
+
   const handleDownload = (type: 'pdf' | 'csv') => {
     toast.success(`Downloading ${type.toUpperCase()} report...`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4 text-muted-foreground">
+        <AlertCircle className="h-12 w-12" />
+        <p>Failed to load payout information</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -38,7 +60,7 @@ const Payouts: React.FC = () => {
             <span className="text-sm font-medium text-muted-foreground">Available Balance</span>
           </div>
           <p className="text-3xl font-bold text-foreground">
-            {formatCurrency(mockPayoutInfo.availableBalance)}
+            {formatCurrency(payoutInfo?.balance.available_balance || 0)}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">Ready for payout</p>
         </div>
@@ -51,7 +73,7 @@ const Payouts: React.FC = () => {
             <span className="text-sm font-medium text-muted-foreground">Pending Payout</span>
           </div>
           <p className="text-3xl font-bold text-foreground">
-            {formatCurrency(mockPayoutInfo.pendingPayout)}
+            {formatCurrency(payoutInfo?.balance.pending_payout || 0)}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">Processing</p>
         </div>
@@ -64,7 +86,7 @@ const Payouts: React.FC = () => {
             <span className="text-sm font-medium text-muted-foreground">Paid Amount</span>
           </div>
           <p className="text-3xl font-bold text-foreground">
-            {formatCurrency(mockPayoutInfo.paidAmount)}
+            {formatCurrency(payoutInfo?.balance.paid_amount || 0)}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">Lifetime earnings</p>
         </div>
@@ -84,24 +106,26 @@ const Payouts: React.FC = () => {
                 <p className="text-sm text-muted-foreground">Your registered bank account</p>
               </div>
             </div>
-            <Badge variant="success">Verified</Badge>
+            <Badge variant={payoutInfo?.bank_account.is_verified ? 'success' : 'warning'}>
+              {payoutInfo?.bank_account.is_verified ? 'Verified' : 'Pending'}
+            </Badge>
           </div>
 
-          {mockUser.bankAccount ? (
+          {payoutInfo?.bank_account ? (
             <div className="space-y-4 rounded-lg bg-secondary/50 p-4">
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Bank Name</span>
-                <span className="text-sm font-medium">{mockUser.bankAccount.bankName}</span>
+                <span className="text-sm font-medium">{payoutInfo.bank_account.bank_name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Account Number</span>
                 <span className="text-sm font-medium font-mono">
-                  {mockUser.bankAccount.accountNumber}
+                  {payoutInfo.bank_account.account_number}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Account Holder</span>
-                <span className="text-sm font-medium">{mockUser.bankAccount.accountHolder}</span>
+                <span className="text-sm font-medium">{payoutInfo.bank_account.account_holder}</span>
               </div>
             </div>
           ) : (
@@ -149,30 +173,25 @@ const Payouts: React.FC = () => {
               Download CSV Export
             </Button>
           </div>
-
-          {mockPayoutInfo.lastPayoutDate && (
-            <p className="mt-4 text-sm text-muted-foreground">
-              Last payout: {formatDate(mockPayoutInfo.lastPayoutDate)}
-            </p>
-          )}
         </div>
       </div>
 
       {/* Recent Notification */}
-      <div className="stat-card animate-fade-in bg-success/5 border-success/20">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-success/10">
-            <Bell className="h-5 w-5 text-success" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground">Payout Completed!</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Your commission of {formatCurrency(7600000)} has been transferred to your bank
-              account on {formatDate('2025-01-20')}.
-            </p>
+      {payoutInfo?.balance.paid_amount > 0 && (
+        <div className="stat-card animate-fade-in bg-success/5 border-success/20">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-success/10">
+              <Bell className="h-5 w-5 text-success" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Payouts Active!</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                You have received a total of {formatCurrency(payoutInfo.balance.paid_amount)} in commissions.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Payout Schedule Info */}
       <div className="stat-card animate-fade-in">
@@ -180,15 +199,15 @@ const Payouts: React.FC = () => {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-lg bg-secondary/50 p-4">
             <p className="text-sm text-muted-foreground">Processing Day</p>
-            <p className="mt-1 font-medium">Every 20th</p>
+            <p className="mt-1 font-medium">Every {payoutInfo?.schedule.processing_day || 20}th</p>
           </div>
           <div className="rounded-lg bg-secondary/50 p-4">
             <p className="text-sm text-muted-foreground">Minimum Payout</p>
-            <p className="mt-1 font-medium">{formatCurrency(500000)}</p>
+            <p className="mt-1 font-medium">{formatCurrency(payoutInfo?.schedule.minimum_payout || 500000)}</p>
           </div>
           <div className="rounded-lg bg-secondary/50 p-4">
             <p className="text-sm text-muted-foreground">Transfer Time</p>
-            <p className="mt-1 font-medium">1-3 Business Days</p>
+            <p className="mt-1 font-medium">{payoutInfo?.schedule.transfer_time || '1-3 Business Days'}</p>
           </div>
           <div className="rounded-lg bg-secondary/50 p-4">
             <p className="text-sm text-muted-foreground">Commission Rate</p>
