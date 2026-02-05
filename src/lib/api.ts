@@ -19,6 +19,27 @@ export interface LoginResponse {
   expires_in: number;
 }
 
+export interface RegisterRequest {
+  full_name: string;
+  email: string;
+  phone: string;
+  password: string;
+}
+
+export interface RegisterResponse {
+  user: ApiUser;
+  message: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  new_password: string;
+}
+
 export interface ApiUser {
   id: number;
   email: string;
@@ -197,10 +218,31 @@ class ApiClient {
   }
 
   // Auth endpoints
+  async register(data: RegisterRequest): Promise<ApiResponse<RegisterResponse>> {
+    return this.request<RegisterResponse>('/partner/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async login(email: string, password: string): Promise<ApiResponse<LoginResponse>> {
     return this.request<LoginResponse>('/partner/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async forgotPassword(email: string): Promise<ApiResponse<null>> {
+    return this.request<null>('/partner/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<ApiResponse<null>> {
+    return this.request<null>('/partner/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password: newPassword }),
     });
   }
 

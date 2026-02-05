@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,12 +115,12 @@ const Login: React.FC = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <button
-                  type="button"
+                <Link
+                  to="/forgot-password"
                   className="text-sm font-medium text-primary hover:text-primary/80"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <Input
@@ -156,9 +156,9 @@ const Login: React.FC = () => {
 
           <p className="text-center text-sm text-muted-foreground">
             Not a partner yet?{' '}
-            <a href="#" className="font-medium text-primary hover:text-primary/80">
+            <Link to="/register" className="font-medium text-primary hover:text-primary/80">
               Apply to join
-            </a>
+            </Link>
           </p>
         </div>
       </div>
